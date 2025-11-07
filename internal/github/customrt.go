@@ -142,6 +142,7 @@ func (c *CustomRoundTripper) RoundTrip(req *http.Request) (*http.Response, error
 
 // Helper for simple API: create a transport that injects GitHub headers and acquires token automatically
 // Accepts a context with app credentials or PAT token, logger, and installation target type.
+// This is what is used in the application code.
 func NewGithubStyleTransport(ctx context.Context, logger *slog.Logger, targetType string) *CustomRoundTripper {
 	static := map[string]string{
 		"Accept":               "application/vnd.github+json",
@@ -151,7 +152,6 @@ func NewGithubStyleTransport(ctx context.Context, logger *slog.Logger, targetTyp
 	authProv := func(req *http.Request) (string, error) {
 		// Check if using PAT token
 		if token, ok := ctx.Value(config.TokenKey).(string); ok && token != "" {
-			// Using Personal Access Token - no need for caching or installation token logic
 			return "Bearer " + token, nil
 		}
 
@@ -163,8 +163,6 @@ func NewGithubStyleTransport(ctx context.Context, logger *slog.Logger, targetTyp
 				cacheKey = targetType + ":" + orgName
 			}
 		}
-
-		// Check if we have a cached token for this cache key
 		globalTokenCache.RLock()
 		if cached, ok := globalTokenCache.tokens[cacheKey]; ok && time.Now().Before(cached.expires) {
 			token := cached.token
@@ -173,7 +171,6 @@ func NewGithubStyleTransport(ctx context.Context, logger *slog.Logger, targetTyp
 		}
 		globalTokenCache.RUnlock()
 
-		// Need to get a new token
 		globalTokenCache.Lock()
 		defer globalTokenCache.Unlock()
 
@@ -182,17 +179,15 @@ func NewGithubStyleTransport(ctx context.Context, logger *slog.Logger, targetTyp
 			return "Bearer " + cached.token, nil
 		}
 
-		// Acquire new installation token for this target type
 		ts := auth.NewTokenService(
 			ctx.Value(config.AppIDKey).(string),
-			ctx.Value(config.PrivateKeyKey).(string), // Changed from PrivateKeyPathKey
+			ctx.Value(config.PrivateKeyKey).(string),
 			ctx.Value(config.BaseURLKey).(string),
 		)
 
 		var tokenStr string
 		var err error
 
-		// For organization-specific requests, get org-specific token
 		if targetType == config.OrganizationType {
 			if orgName, ok := ctx.Value(config.OrgKey).(string); ok && orgName != "" {
 				tokenStr, err = ts.GetInstallationTokenForOrg(orgName)
@@ -200,7 +195,6 @@ func NewGithubStyleTransport(ctx context.Context, logger *slog.Logger, targetTyp
 					return "", err
 				}
 			} else {
-				// Fall back to general installation token
 				token, err := ts.GetInstallationToken(targetType)
 				if err != nil {
 					return "", err

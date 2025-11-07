@@ -51,17 +51,14 @@ var CreateCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := cmd.Context()
 
-		// Get logger from context (initialized in root command)
 		logger, ok := ctx.Value(config.LoggerKey).(*slog.Logger)
 		if !ok || logger == nil {
-			// Fallback to default logger if not found
 			logger = slog.New(slog.NewJSONHandler(os.Stdout, nil))
 		}
 
-		// Get facilitators from context
 		facilitators := ctx.Value(config.FacilitatorsKey).([]string)
 
-		// Validate the user
+		// Validate the user + facilitators
 		logger.Info("Validating user", slog.String("user", user))
 		userValidation, err := api.ValidateAndFilterUsers(ctx, logger, []string{user})
 		if err != nil {
@@ -72,7 +69,6 @@ var CreateCmd = &cobra.Command{
 			return fmt.Errorf("user '%s' not found in GitHub", user)
 		}
 
-		// Validate and filter facilitators
 		if len(facilitators) > 0 {
 			logger.Info("Validating facilitators", slog.Int("count", len(facilitators)))
 			facilitatorValidation, err := api.ValidateAndFilterUsers(ctx, logger, facilitators)
@@ -87,12 +83,10 @@ var CreateCmd = &cobra.Command{
 			}
 
 			facilitators = facilitatorValidation.ValidUsers
-			// Update context with filtered facilitators
 			ctx = context.WithValue(ctx, config.FacilitatorsKey, facilitators)
 			logger.Info("Proceeding with validated facilitators", slog.Int("count", len(facilitators)))
 		}
 
-		// Get enterprise information
 		enterpriseSlug := ctx.Value(config.EnterpriseSlugKey).(string)
 		enterprise, err := api.GetEnterprise(ctx, logger, enterpriseSlug)
 		if err != nil {
@@ -100,7 +94,7 @@ var CreateCmd = &cobra.Command{
 			return fmt.Errorf("failed to get enterprise info: %w", err)
 		}
 
-		// Create organization and add user
+		// Create organization
 		org, err := enterprise.CreateOrg(ctx, logger, user)
 		if err != nil {
 			logger.Error("Failed to create organization", slog.Any("error", err))

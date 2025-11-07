@@ -96,7 +96,6 @@ var rootCmd = &cobra.Command{
 		return nil
 	},
 	PersistentPostRunE: func(cmd *cobra.Command, args []string) error {
-		// Cleanup: close log file if it was opened
 		if closer, ok := cmd.Context().Value("logCloser").(io.Closer); ok && closer != nil {
 			return closer.Close()
 		}

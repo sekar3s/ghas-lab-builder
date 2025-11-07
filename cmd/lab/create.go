@@ -41,7 +41,6 @@ var CreateCmd = &cobra.Command{
 			}
 		}
 
-		// Now add our lab-specific context values
 		ctx := cmd.Context()
 		ctx = context.WithValue(ctx, config.FacilitatorsKey, strings.Split(facilitators, ","))
 		ctx = context.WithValue(ctx, config.LabDateKey, labDate)

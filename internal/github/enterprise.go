@@ -28,7 +28,6 @@ func GetEnterprise(ctx context.Context, logger *slog.Logger, enterpriseSlug stri
 	baseURL := ctx.Value(config.BaseURLKey).(string)
 	graphqlURL := baseURL + "/graphql"
 
-	// GraphQL query to fetch enterprise by slug
 	query := `
 		query($slug: String!) {
 			enterprise(slug: $slug) {
@@ -38,8 +37,6 @@ func GetEnterprise(ctx context.Context, logger *slog.Logger, enterpriseSlug stri
 			}
 		}
 	`
-
-	// Build the GraphQL request payload
 	payload := map[string]interface{}{
 		"query": query,
 		"variables": map[string]interface{}{
@@ -94,7 +91,6 @@ func GetEnterprise(ctx context.Context, logger *slog.Logger, enterpriseSlug stri
 		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}
 
-	// Check for GraphQL errors
 	if len(result.Errors) > 0 {
 		logger.Error("GraphQL errors",
 			slog.String("message", result.Errors[0].Message),

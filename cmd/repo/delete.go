@@ -43,10 +43,8 @@ var DeleteCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := cmd.Context()
 
-		// Get logger from context (initialized in root command)
 		logger, ok := ctx.Value(config.LoggerKey).(*slog.Logger)
 		if !ok || logger == nil {
-			// Fallback to default logger if not found
 			logger = slog.New(slog.NewJSONHandler(os.Stdout, nil))
 		}
 

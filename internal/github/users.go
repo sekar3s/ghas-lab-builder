@@ -32,7 +32,6 @@ func ValidateAndFilterUsers(ctx context.Context, logger *slog.Logger, usernames 
 	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
 
-	// Use the existing roundtripper infrastructure
 	rt := NewGithubStyleTransport(ctx, logger, config.EnterpriseType)
 	client := &http.Client{
 		Transport: rt,
@@ -40,7 +39,6 @@ func ValidateAndFilterUsers(ctx context.Context, logger *slog.Logger, usernames 
 
 	baseURL := ctx.Value(config.BaseURLKey).(string)
 
-	// Use channels and goroutines for concurrent validation
 	type validationResult struct {
 		username string
 		valid    bool
@@ -58,11 +56,9 @@ func ValidateAndFilterUsers(ctx context.Context, logger *slog.Logger, usernames 
 		go func(user string) {
 			defer wg.Done()
 
-			// Acquire semaphore
 			semaphore <- struct{}{}
 			defer func() { <-semaphore }()
 
-			// Check if context is cancelled
 			select {
 			case <-ctx.Done():
 				resultChan <- validationResult{username: user, valid: false, err: ctx.Err()}
@@ -99,13 +95,11 @@ func ValidateAndFilterUsers(ctx context.Context, logger *slog.Logger, usernames 
 		}(username)
 	}
 
-	// Close channel when all goroutines complete
 	go func() {
 		wg.Wait()
 		close(resultChan)
 	}()
 
-	// Collect results - preserve original order
 	validationMap := make(map[string]bool)
 	invalidUsers := []string{}
 
@@ -117,7 +111,6 @@ func ValidateAndFilterUsers(ctx context.Context, logger *slog.Logger, usernames 
 		}
 	}
 
-	// Build valid users list maintaining original order
 	validUsers := make([]string, 0, len(usernames))
 	for _, username := range usernames {
 		if validationMap[username] {

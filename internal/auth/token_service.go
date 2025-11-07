@@ -23,13 +23,13 @@ type InstallationTokenInfo struct {
 // TokenService handles GitHub App authentication
 type TokenService struct {
 	appID      string
-	privateKey string // Changed from privateKeyPath
+	privateKey string
 	baseURL    string
 }
 
 // Installation represents a GitHub App installation
 type Installation struct {
-	ID      int64 `json:"id"` // Changed from string to int64
+	ID      int64 `json:"id"`
 	Account struct {
 		Login string `json:"login"`
 	} `json:"account"`
@@ -47,27 +47,22 @@ type InstallationToken struct {
 func NewTokenService(appID, privateKey, baseURL string) *TokenService {
 	return &TokenService{
 		appID:      appID,
-		privateKey: privateKey, // Changed
+		privateKey: privateKey,
 		baseURL:    baseURL,
 	}
 }
 
 // CreateJWT generates a JWT for GitHub App authentication
 func (ts *TokenService) CreateJWT() (string, error) {
-	// Use the private key content directly
-	privateKeyData := []byte(ts.privateKey) // Changed
 
-	// Parse the PEM encoded private key
+	privateKeyData := []byte(ts.privateKey)
 	block, _ := pem.Decode(privateKeyData)
 	if block == nil {
 		return "", fmt.Errorf("failed to decode PEM block from private key")
 	}
 
-	// Parse the RSA private key
 	privateKey, err := x509.ParsePKCS1PrivateKey(block.Bytes)
 	if err != nil {
-		// Try parsing as PKCS8
-
 		type InstallationTokenInfo struct {
 			Token     string `json:"token"`
 			ExpiresAt string `json:"expires_at"`
@@ -194,6 +189,7 @@ func (ts *TokenService) CreateInstallationToken(jwt string, installationID int64
 }
 
 // GetInstallationToken is a convenience method that creates a JWT and exchanges it for an installation token
+// This is what is used in the application code
 func (ts *TokenService) GetInstallationToken(tokenType string) (InstallationTokenInfo, error) {
 	// Create JWT
 	jwt, err := ts.CreateJWT()
@@ -211,7 +207,6 @@ func (ts *TokenService) GetInstallationToken(tokenType string) (InstallationToke
 		return InstallationTokenInfo{}, fmt.Errorf("no installations found for this GitHub App")
 	}
 
-	// Use the installation with token_type "Enterprise"
 	var installationID int64
 	var clientID string
 
@@ -223,10 +218,9 @@ func (ts *TokenService) GetInstallationToken(tokenType string) (InstallationToke
 		}
 	}
 
-	if installationID == 0 { // Changed from "" to 0
+	if installationID == 0 {
 		return InstallationTokenInfo{}, fmt.Errorf("no suitable installation found for this GitHub App")
 	}
-	// Create installation token
 	token, err := ts.CreateInstallationToken(jwt, installationID)
 	if err != nil {
 		return InstallationTokenInfo{}, fmt.Errorf("failed to create installation token: %w", err)
@@ -236,7 +230,7 @@ func (ts *TokenService) GetInstallationToken(tokenType string) (InstallationToke
 		Token:     token.Token,
 		ExpiresAt: token.ExpiresAt.Format(time.RFC3339),
 		ClientID:  clientID,
-		AppID:     fmt.Sprintf("%d", installationID), // Convert int64 to string
+		AppID:     fmt.Sprintf("%d", installationID),
 	}
 
 	return installationToken, nil
@@ -244,28 +238,22 @@ func (ts *TokenService) GetInstallationToken(tokenType string) (InstallationToke
 
 // GetInstallationTokenForOrg gets an installation token for a specific organization
 func (ts *TokenService) GetInstallationTokenForOrg(orgLogin string) (string, error) {
-	// Create JWT
 	jwt, err := ts.CreateJWT()
 	if err != nil {
 		return "", fmt.Errorf("failed to create JWT: %w", err)
 	}
-
-	// Get installations
 	installations, err := ts.GetInstallations(jwt)
 	if err != nil {
 		return "", fmt.Errorf("failed to get installations: %w", err)
 	}
-
-	// Find the installation for the specified organization
-	var installationID int64 // Changed from string to int64
+	var installationID int64
 	for _, installation := range installations {
 		if installation.Account.Login == orgLogin {
 			installationID = installation.ID
 			break
 		}
 	}
-
-	if installationID == 0 { // Changed from "" to 0
+	if installationID == 0 {
 		return "", fmt.Errorf("no installation found for organization: %s", orgLogin)
 	}
 

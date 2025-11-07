@@ -29,7 +29,6 @@ func (enterprise *Enterprise) CreateOrg(ctx context.Context, logger *slog.Logger
 	baseURL := ctx.Value(config.BaseURLKey).(string)
 	graphqlURL := baseURL + "/graphql"
 
-	// GraphQL mutation for creating an enterprise organization
 	mutation := `
 		mutation($enterpriseId: ID!, $login: String!, $profileName: String!, $adminLogins: [String!]!, $billingEmail: String!) {
 			createEnterpriseOrganization(input: {
@@ -60,7 +59,7 @@ func (enterprise *Enterprise) CreateOrg(ctx context.Context, logger *slog.Logger
 			"enterpriseId": enterprise.ID,
 			"login":        orgName,
 			"profileName":  orgName,
-			"adminLogins":  facilitators, //append([]string{user}, facilitators...),
+			"adminLogins":  append([]string{user}, facilitators...),
 			"billingEmail": billingEmail,
 		},
 	}
