@@ -58,4 +58,5 @@ go.work
 #folders 
 scripts/*
 reports/*
+logs/*
 # End of https://www.toptal.com/developers/gitignore/api/git,visualstudiocode,go
