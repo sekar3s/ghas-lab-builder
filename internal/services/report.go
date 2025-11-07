@@ -42,14 +42,16 @@ type RepoReport struct {
 
 // DeleteLabReport represents the complete lab environment deletion report
 type DeleteLabReport struct {
-	GeneratedAt    time.Time         `json:"generated_at"`
-	LabDate        string            `json:"lab_date"`
-	EnterpriseSlug string            `json:"enterprise_slug"`
-	TotalUsers     int               `json:"total_users"`
-	SuccessCount   int               `json:"success_count"`
-	FailureCount   int               `json:"failure_count"`
-	Organizations  []DeleteOrgReport `json:"organizations"`
-	Facilitators   []string          `json:"facilitators,omitempty"`
+	GeneratedAt         time.Time         `json:"generated_at"`
+	LabDate             string            `json:"lab_date"`
+	EnterpriseSlug      string            `json:"enterprise_slug"`
+	TotalUsers          int               `json:"total_users"`
+	SuccessCount        int               `json:"success_count"`
+	FailureCount        int               `json:"failure_count"`
+	Organizations       []DeleteOrgReport `json:"organizations"`
+	Facilitators        []string          `json:"facilitators,omitempty"`
+	InvalidUsers        []string          `json:"invalid_users,omitempty"`
+	InvalidFacilitators []string          `json:"invalid_facilitators,omitempty"`
 }
 
 // DeleteOrgReport represents the deletion details of a single organization
@@ -441,6 +443,31 @@ func generateDeleteGitHubStepSummary(report *DeleteLabReport) error {
 		float64(report.FailureCount)/float64(report.TotalUsers)*100)
 	fmt.Fprintf(file, "\n")
 
+	// Invalid users warning
+	if len(report.InvalidUsers) > 0 || len(report.InvalidFacilitators) > 0 {
+		fmt.Fprintf(file, "## ⚠️ Invalid Users Skipped\n\n")
+		if len(report.InvalidUsers) > 0 {
+			fmt.Fprintf(file, "**Invalid Users (%d):** ", len(report.InvalidUsers))
+			for i, u := range report.InvalidUsers {
+				if i > 0 {
+					fmt.Fprintf(file, ", ")
+				}
+				fmt.Fprintf(file, "`@%s`", u)
+			}
+			fmt.Fprintf(file, "\n\n")
+		}
+		if len(report.InvalidFacilitators) > 0 {
+			fmt.Fprintf(file, "**Invalid Facilitators (%d):** ", len(report.InvalidFacilitators))
+			for i, f := range report.InvalidFacilitators {
+				if i > 0 {
+					fmt.Fprintf(file, ", ")
+				}
+				fmt.Fprintf(file, "`@%s`", f)
+			}
+			fmt.Fprintf(file, "\n\n")
+		}
+	}
+
 	// Facilitators
 	if len(report.Facilitators) > 0 {
 		fmt.Fprintf(file, "**👥 Facilitators:** ")
@@ -499,7 +526,7 @@ func generateDeleteGitHubStepSummary(report *DeleteLabReport) error {
 func generateDeleteMarkdownReport(report *DeleteLabReport, filePath string) error {
 	file, err := os.Create(filePath)
 	if err != nil {
-		return fmt.Errorf("failed to create Markdown report file: %w", err)
+		return fmt.Errorf("failed to create Markdown deletion report file: %w", err)
 	}
 	defer file.Close()
 
@@ -518,6 +545,31 @@ func generateDeleteMarkdownReport(report *DeleteLabReport, filePath string) erro
 			fmt.Fprintf(file, "@%s", f)
 		}
 		fmt.Fprintf(file, "\n\n")
+	}
+
+	// Write invalid users warning if any
+	if len(report.InvalidUsers) > 0 || len(report.InvalidFacilitators) > 0 {
+		fmt.Fprintf(file, "## ⚠️ Invalid Users Skipped\n\n")
+		if len(report.InvalidUsers) > 0 {
+			fmt.Fprintf(file, "**Invalid Users (%d):** ", len(report.InvalidUsers))
+			for i, u := range report.InvalidUsers {
+				if i > 0 {
+					fmt.Fprintf(file, ", ")
+				}
+				fmt.Fprintf(file, "@%s", u)
+			}
+			fmt.Fprintf(file, "\n\n")
+		}
+		if len(report.InvalidFacilitators) > 0 {
+			fmt.Fprintf(file, "**Invalid Facilitators (%d):** ", len(report.InvalidFacilitators))
+			for i, f := range report.InvalidFacilitators {
+				if i > 0 {
+					fmt.Fprintf(file, ", ")
+				}
+				fmt.Fprintf(file, "@%s", f)
+			}
+			fmt.Fprintf(file, "\n\n")
+		}
 	}
 
 	// Write summary

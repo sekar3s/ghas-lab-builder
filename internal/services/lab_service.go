@@ -357,21 +357,47 @@ func DestroyLabEnvironment(ctx context.Context, logger *slog.Logger, labDate str
 	enterpriseSlug, ok := ctx.Value(config.EnterpriseSlugKey).(string)
 	if !ok {
 		logger.Error("Enterprise slug not found in context")
-		return err
+		return fmt.Errorf("enterprise slug not found in context")
 	}
 
 	// Get facilitators from context
 	facilitators, _ := ctx.Value(config.FacilitatorsKey).([]string)
+
+	// Validate and filter users
+	logger.Info("Validating users", slog.Int("count", len(users)))
+	userValidation, err := api.ValidateAndFilterUsers(ctx, logger, users)
+	if err != nil {
+		logger.Error("User validation failed", slog.Any("error", err))
+		return fmt.Errorf("user validation failed: %w", err)
+	}
+
+	invalidUsers := userValidation.InvalidUsers
+	users = userValidation.ValidUsers
+
+	// Validate and filter facilitators
+	invalidFacilitators := []string{}
+	if len(facilitators) > 0 {
+		logger.Info("Validating facilitators", slog.Int("count", len(facilitators)))
+		facilitatorValidation, err := api.ValidateAndFilterUsers(ctx, logger, facilitators)
+		if err != nil {
+			logger.Error("Facilitator validation failed", slog.Any("error", err))
+			return fmt.Errorf("facilitator validation failed: %w", err)
+		}
+		invalidFacilitators = facilitatorValidation.InvalidUsers
+		facilitators = facilitatorValidation.ValidUsers
+	}
 
 	// Combine users and facilitators for deletion
 	allUsersToDelete := make([]string, 0, len(users)+len(facilitators))
 	allUsersToDelete = append(allUsersToDelete, users...)
 	allUsersToDelete = append(allUsersToDelete, facilitators...)
 
-	logger.Info("Proceeding with deletion",
+	logger.Info("Proceeding with validated users for deletion",
 		slog.Int("student_count", len(users)),
 		slog.Int("facilitator_count", len(facilitators)),
-		slog.Int("total_delete_count", len(allUsersToDelete)))
+		slog.Int("total_delete_count", len(allUsersToDelete)),
+		slog.Int("invalid_user_count", len(invalidUsers)),
+		slog.Int("invalid_facilitator_count", len(invalidFacilitators)))
 
 	// Get Enterprise details
 	enterprise, err := api.GetEnterprise(ctx, logger, enterpriseSlug)
@@ -382,14 +408,16 @@ func DestroyLabEnvironment(ctx context.Context, logger *slog.Logger, labDate str
 
 	// Initialize delete report
 	deleteReport := &DeleteLabReport{
-		GeneratedAt:    time.Now(),
-		LabDate:        labDate,
-		EnterpriseSlug: enterpriseSlug,
-		TotalUsers:     len(users),
-		SuccessCount:   0,
-		FailureCount:   0,
-		Organizations:  make([]DeleteOrgReport, 0),
-		Facilitators:   facilitators,
+		GeneratedAt:         time.Now(),
+		LabDate:             labDate,
+		EnterpriseSlug:      enterpriseSlug,
+		TotalUsers:          len(users),
+		SuccessCount:        0,
+		FailureCount:        0,
+		Organizations:       make([]DeleteOrgReport, 0),
+		Facilitators:        facilitators,
+		InvalidUsers:        invalidUsers,
+		InvalidFacilitators: invalidFacilitators,
 	}
 
 	userChan := make(chan string, len(allUsersToDelete))

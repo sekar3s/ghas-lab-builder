@@ -27,7 +27,6 @@ func (org *Organization) createRepoFromTemplateWithRetry(ctx context.Context, lo
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Minute)
 	defer cancel()
 
-	// Parse template repo (format: owner/repo)
 	parts := strings.Split(templateRepo, "/")
 	if len(parts) != 2 {
 		return nil, fmt.Errorf("invalid template repo format, expected 'owner/repo', got: %s", templateRepo)
@@ -38,7 +37,6 @@ func (org *Organization) createRepoFromTemplateWithRetry(ctx context.Context, lo
 	baseURL := ctx.Value(config.BaseURLKey).(string)
 	apiURL := fmt.Sprintf("%s/repos/%s/%s/generate", baseURL, templateOwner, templateRepoName)
 
-	// Request payload for creating a repo from template
 	payload := map[string]interface{}{
 		"owner":                org.Login,
 		"name":                 templateRepoName,
@@ -53,7 +51,6 @@ func (org *Organization) createRepoFromTemplateWithRetry(ctx context.Context, lo
 		return nil, fmt.Errorf("failed to marshal request payload: %w", err)
 	}
 
-	//user customrt to inject headers
 	rt := NewGithubStyleTransport(ctx, logger, config.OrganizationType)
 
 	client := &http.Client{

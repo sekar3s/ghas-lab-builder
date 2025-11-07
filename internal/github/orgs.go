@@ -59,7 +59,7 @@ func (enterprise *Enterprise) CreateOrg(ctx context.Context, logger *slog.Logger
 			"enterpriseId": enterprise.ID,
 			"login":        orgName,
 			"profileName":  orgName,
-			"adminLogins":  append([]string{user}, facilitators...),
+			"adminLogins":  facilitators,
 			"billingEmail": billingEmail,
 		},
 	}
@@ -125,7 +125,108 @@ func (enterprise *Enterprise) CreateOrg(ctx context.Context, logger *slog.Logger
 		slog.String("user", user),
 		slog.Any("response", result))
 
-	return &result.Data.CreateEnterpriseOrganization.Organization, nil
+	org := &result.Data.CreateEnterpriseOrganization.Organization
+
+	// Add the user as admin after org creation (if not already in facilitators list)
+	isUserInFacilitators := false
+	for _, facilitator := range facilitators {
+		if facilitator == user {
+			isUserInFacilitators = true
+			break
+		}
+	}
+
+	if !isUserInFacilitators && len(facilitators) > 0 {
+		logger.Info("Adding user as organization admin", slog.String("user", user), slog.String("org", org.Login))
+		if err := AddOrgMember(ctx, logger, org.Login, user, "admin"); err != nil {
+			logger.Error("Failed to add user as admin",
+				slog.String("user", user),
+				slog.String("org", org.Login),
+				slog.Any("error", err))
+			// Don't fail the whole operation, just log the error
+			logger.Warn("Organization created but user was not added as admin - manual intervention may be required")
+		}
+	}
+
+	return org, nil
+}
+
+// AddOrgMember adds or updates a user's organization membership
+// role can be "admin" or "member"
+func AddOrgMember(ctx context.Context, logger *slog.Logger, orgName string, username string, role string) error {
+	logger.Info("Adding user to organization",
+		slog.String("org", orgName),
+		slog.String("user", username),
+		slog.String("role", role))
+
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
+	rt := NewGithubStyleTransport(ctx, logger, config.EnterpriseType)
+	client := &http.Client{
+		Transport: rt,
+	}
+
+	baseURL := ctx.Value(config.BaseURLKey).(string)
+	apiURL := fmt.Sprintf("%s/orgs/%s/memberships/%s", baseURL, orgName, username)
+
+	payload := map[string]interface{}{
+		"role": role,
+	}
+
+	jsonData, err := json.Marshal(payload)
+	if err != nil {
+		logger.Error("Failed to marshal request payload", slog.Any("error", err))
+		return fmt.Errorf("failed to marshal request payload: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPut, apiURL, bytes.NewBuffer(jsonData))
+	if err != nil {
+		logger.Error("Failed to create request", slog.Any("error", err))
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		logger.Error("Failed to execute request", slog.Any("error", err))
+		return fmt.Errorf("failed to execute request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		logger.Error("Failed to read response body", slog.Any("error", err))
+		return fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		logger.Error("Failed to add user to organization",
+			slog.Int("status_code", resp.StatusCode),
+			slog.String("response", string(body)))
+		return fmt.Errorf("failed to add user with status %d: %s", resp.StatusCode, string(body))
+	}
+
+	var membership struct {
+		URL   string `json:"url"`
+		State string `json:"state"`
+		Role  string `json:"role"`
+		User  struct {
+			Login string `json:"login"`
+		} `json:"user"`
+	}
+
+	if err := json.Unmarshal(body, &membership); err != nil {
+		logger.Error("Failed to parse response", slog.Any("error", err))
+		return fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	logger.Info("Successfully added user to organization",
+		slog.String("org", orgName),
+		slog.String("user", username),
+		slog.String("role", membership.Role),
+		slog.String("state", membership.State))
+
+	return nil
 }
 
 func (enterprise *Enterprise) DeleteOrg(ctx context.Context, logger *slog.Logger, orgLogin string) error {
@@ -142,7 +243,6 @@ func (enterprise *Enterprise) DeleteOrg(ctx context.Context, logger *slog.Logger
 	baseURL := ctx.Value(config.BaseURLKey).(string)
 	graphqlURL := baseURL + "/graphql"
 
-	// First, get the organization ID
 	queryOrg := `
 		query($login: String!) {
 			organization(login: $login) {
@@ -221,7 +321,6 @@ func (enterprise *Enterprise) DeleteOrg(ctx context.Context, logger *slog.Logger
 	orgID := queryResult.Data.Organization.ID
 	logger.Info("Found organization to delete", slog.String("org", orgLogin), slog.String("id", orgID))
 
-	// Now delete the organization
 	mutation := `
 		mutation($enterpriseId: ID!, $organizationId: ID!) {
 			removeEnterpriseOrganization(input: {
