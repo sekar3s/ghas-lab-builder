@@ -11,6 +11,14 @@ import (
 	"github.com/spf13/cobra"
 )
 
+func init() {
+	DeleteCmd.Flags().StringVar(&labDate, "lab-date", "", "Date string to identify date of the lab (e.g., '2024-06-15') (required)")
+	DeleteCmd.MarkFlagRequired("lab-date")
+
+	DeleteCmd.Flags().StringVar(&user, "user", "", "User identifier for the organization (required)")
+	DeleteCmd.MarkFlagRequired("user")
+}
+
 var DeleteCmd = &cobra.Command{
 	Use:   "delete",
 	Short: "Delete an organization from a lab environment",

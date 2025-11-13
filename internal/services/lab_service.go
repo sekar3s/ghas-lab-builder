@@ -57,15 +57,18 @@ func ProvisionOrgResources(workerId int, ctx context.Context, logger *slog.Logge
 		orgName := organization.Login
 		result.OrgName = orgName
 
-		//Install app on organization
-		_, err = enterprise.InstallAppOnOrg(ctx, logger, orgName)
-		if err != nil {
-			logger.Error("Failed to install app on organization",
-				slog.String("org", orgName),
-				slog.Any("error", err))
-			result.Error = fmt.Sprintf("Failed to install app: %v", err)
-			resultsChan <- result
-			continue
+		//Install app on organization if app installation provided and not PAT
+		if ctx.Value(config.TokenKey) == nil {
+
+			_, err = enterprise.InstallAppOnOrg(ctx, logger, orgName)
+			if err != nil {
+				logger.Error("Failed to install app on organization",
+					slog.String("org", orgName),
+					slog.Any("error", err))
+				result.Error = fmt.Sprintf("Failed to install app: %v", err)
+				resultsChan <- result
+				continue
+			}
 		}
 
 		// Add organization name to context for token scoping (must be after app installation)
@@ -168,9 +171,24 @@ func CreateLabEnvironment(ctx context.Context, logger *slog.Logger, usersFile st
 	}
 
 	// Combine users and facilitators for provisioning
-	allUsersToProvision := make([]string, 0, len(users)+len(facilitators))
-	allUsersToProvision = append(allUsersToProvision, users...)
-	allUsersToProvision = append(allUsersToProvision, facilitators...)
+	// Use a map to efficiently track unique users
+	userSet := make(map[string]bool, len(users)+len(facilitators))
+
+	// Add all users first
+	for _, user := range users {
+		userSet[user] = true
+	}
+
+	// Add facilitators only if not already present
+	for _, facilitator := range facilitators {
+		userSet[facilitator] = true
+	}
+
+	// Convert map to slice
+	allUsersToProvision := make([]string, 0, len(userSet))
+	for user := range userSet {
+		allUsersToProvision = append(allUsersToProvision, user)
+	}
 
 	logger.Info("Proceeding with validated users",
 		slog.Int("student_count", len(users)),
@@ -409,9 +427,21 @@ func DestroyLabEnvironment(ctx context.Context, logger *slog.Logger, labDate str
 	}
 
 	// Combine users and facilitators for deletion
-	allUsersToDelete := make([]string, 0, len(users)+len(facilitators))
-	allUsersToDelete = append(allUsersToDelete, users...)
-	allUsersToDelete = append(allUsersToDelete, facilitators...)
+	// Use a map to efficiently track unique users
+	userSet := make(map[string]bool, len(users)+len(facilitators))
+
+	for _, user := range users {
+		userSet[user] = true
+	}
+
+	for _, facilitator := range facilitators {
+		userSet[facilitator] = true
+	}
+
+	allUsersToDelete := make([]string, 0, len(userSet))
+	for user := range userSet {
+		allUsersToDelete = append(allUsersToDelete, user)
+	}
 
 	logger.Info("Proceeding with validated users for deletion",
 		slog.Int("student_count", len(users)),

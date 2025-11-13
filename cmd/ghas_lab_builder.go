@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"os"
 
+	"github.com/s-samadi/ghas-lab-builder/cmd/enterprise"
 	"github.com/s-samadi/ghas-lab-builder/cmd/lab"
 	"github.com/s-samadi/ghas-lab-builder/cmd/orgs"
 	"github.com/s-samadi/ghas-lab-builder/cmd/repo"
@@ -130,4 +131,5 @@ func init() {
 	rootCmd.AddCommand(lab.LabCmd)
 	rootCmd.AddCommand(repo.RepoCmd)
 	rootCmd.AddCommand(orgs.OrgsCmd)
+	rootCmd.AddCommand(enterprise.EnterpriseCmd)
 }

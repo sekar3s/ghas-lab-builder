@@ -12,6 +12,7 @@ const (
 	FacilitatorsKey   contextKey = "facilitators"
 	LoggerKey         contextKey = "logger"
 	OrgKey            contextKey = "org"
+	UsersFileKey      contextKey = "users-file"
 )
 
 const (

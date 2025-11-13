@@ -14,9 +14,17 @@ import (
 
 var (
 	facilitators string
+	labDate      string
+	user         string
 )
 
 func init() {
+	CreateCmd.Flags().StringVar(&labDate, "lab-date", "", "Date string to identify date of the lab (e.g., '2024-06-15') (required)")
+	CreateCmd.MarkFlagRequired("lab-date")
+
+	CreateCmd.Flags().StringVar(&user, "user", "", "User identifier for the organization (required)")
+	CreateCmd.MarkFlagRequired("user")
+
 	CreateCmd.PersistentFlags().StringVar(&facilitators, "facilitators", "", "Lab facilitators usernames, comma-separated (required)")
 	CreateCmd.MarkPersistentFlagRequired("facilitators")
 }
