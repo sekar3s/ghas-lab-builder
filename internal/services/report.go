@@ -44,7 +44,6 @@ type RepoReport struct {
 type DeleteLabReport struct {
 	GeneratedAt         time.Time         `json:"generated_at"`
 	LabDate             string            `json:"lab_date"`
-	EnterpriseSlug      string            `json:"enterprise_slug"`
 	TotalUsers          int               `json:"total_users"`
 	SuccessCount        int               `json:"success_count"`
 	FailureCount        int               `json:"failure_count"`
@@ -122,7 +121,7 @@ func generateGitHubStepSummary(report *LabReport) error {
 		emoji = "❌"
 	}
 
-	fmt.Fprintf(file, "> %s **Lab Date:** `%s` | **Enterprise:** `%s`\n\n", emoji, report.LabDate, report.EnterpriseSlug)
+	fmt.Fprintf(file, "> %s **Lab Date:** `%s`\n\n", emoji, report.LabDate)
 
 	// Stats table
 	fmt.Fprintf(file, "## 📊 Summary\n\n")
@@ -431,7 +430,7 @@ func generateDeleteGitHubStepSummary(report *DeleteLabReport) error {
 		emoji = "❌"
 	}
 
-	fmt.Fprintf(file, "> %s **Lab Date:** `%s` | **Enterprise:** `%s`\n\n", emoji, report.LabDate, report.EnterpriseSlug)
+	fmt.Fprintf(file, "> %s **Lab Date:** `%s`\n\n", emoji, report.LabDate)
 
 	// Stats table
 	fmt.Fprintf(file, "## 📊 Summary\n\n")
@@ -534,7 +533,6 @@ func generateDeleteMarkdownReport(report *DeleteLabReport, filePath string) erro
 	fmt.Fprintf(file, "# Lab Environment Deletion Report\n\n")
 	fmt.Fprintf(file, "**Generated:** %s\n\n", report.GeneratedAt.Format("2006-01-02 15:04:05 MST"))
 	fmt.Fprintf(file, "**Lab Date:** %s\n\n", report.LabDate)
-	fmt.Fprintf(file, "**Enterprise:** %s\n\n", report.EnterpriseSlug)
 
 	if len(report.Facilitators) > 0 {
 		fmt.Fprintf(file, "**Facilitators:** ")

@@ -13,9 +13,10 @@ import (
 )
 
 var (
-	facilitators string
-	labDate      string
-	user         string
+	facilitators   string
+	labDate        string
+	user           string
+	enterpriseSlug string
 )
 
 func init() {
@@ -27,6 +28,8 @@ func init() {
 
 	CreateCmd.PersistentFlags().StringVar(&facilitators, "facilitators", "", "Lab facilitators usernames, comma-separated (required)")
 	CreateCmd.MarkPersistentFlagRequired("facilitators")
+	CreateCmd.PersistentFlags().StringVar(&enterpriseSlug, "enterprise-slug", "", "GitHub Enterprise slug")
+	CreateCmd.MarkPersistentFlagRequired("enterprise-slug")
 }
 
 var CreateCmd = &cobra.Command{

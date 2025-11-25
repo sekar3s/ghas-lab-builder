@@ -38,7 +38,6 @@ var DeleteCmd = &cobra.Command{
 		}
 
 		ctx := cmd.Context()
-		ctx = context.WithValue(ctx, config.EnterpriseSlugKey, cmd.Flags().Lookup("enterprise-slug").Value.String())
 		ctx = context.WithValue(ctx, config.LabDateKey, labDate)
 
 		cmd.SetContext(ctx)
@@ -52,19 +51,11 @@ var DeleteCmd = &cobra.Command{
 			logger = slog.New(slog.NewJSONHandler(os.Stdout, nil))
 		}
 
-		// Get enterprise information
-		enterpriseSlug := ctx.Value(config.EnterpriseSlugKey).(string)
-		enterprise, err := api.GetEnterprise(ctx, logger, enterpriseSlug)
-		if err != nil {
-			logger.Error("Failed to get enterprise info", slog.Any("error", err))
-			return fmt.Errorf("failed to get enterprise info: %w", err)
-		}
-
 		// Build org name from lab date and user
 		orgName := fmt.Sprintf("ghas-labs-%s-%s", labDate, user)
 
 		// Delete organization
-		err = enterprise.DeleteOrg(ctx, logger, orgName)
+		err := api.DeleteOrg(ctx, logger, orgName)
 		if err != nil {
 			logger.Error("Failed to delete organization",
 				slog.String("org", orgName),

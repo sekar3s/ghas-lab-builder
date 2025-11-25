@@ -5,8 +5,9 @@ import (
 )
 
 var (
-	usersFile string
-	labDate   string
+	usersFile      string
+	labDate        string
+	enterpriseSlug string
 )
 
 var LabCmd = &cobra.Command{
@@ -22,6 +23,8 @@ func init() {
 	LabCmd.MarkPersistentFlagRequired("users-file")
 	LabCmd.PersistentFlags().StringVar(&facilitators, "facilitators", "", "lab facilitators usernames, comma-separated")
 	LabCmd.MarkPersistentFlagRequired("facilitators")
+	LabCmd.PersistentFlags().StringVar(&enterpriseSlug, "enterprise-slug", "", "GitHub Enterprise slug")
+	LabCmd.MarkPersistentFlagRequired("enterprise-slug")
 
 	LabCmd.AddCommand(CreateCmd)
 	LabCmd.AddCommand(DeleteCmd)

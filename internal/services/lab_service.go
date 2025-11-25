@@ -361,8 +361,7 @@ func DestroyOrgResources(workerId int, ctx context.Context, logger *slog.Logger,
 		orgName := "ghas-labs-" + labDate + "-" + user
 		logger.Info("Deleting organization", slog.String("org", orgName), slog.String("user", user))
 
-		// Call the GraphQL-based DeleteOrg function
-		if err := enterprise.DeleteOrg(ctx, logger, orgName); err != nil {
+		if err := api.DeleteOrg(ctx, logger, orgName); err != nil {
 			logger.Error("Failed to delete organization",
 				slog.String("user", user),
 				slog.String("org", orgName),
@@ -461,7 +460,6 @@ func DestroyLabEnvironment(ctx context.Context, logger *slog.Logger, labDate str
 	deleteReport := &DeleteLabReport{
 		GeneratedAt:         time.Now(),
 		LabDate:             labDate,
-		EnterpriseSlug:      enterpriseSlug,
 		TotalUsers:          len(users),
 		SuccessCount:        0,
 		FailureCount:        0,
@@ -577,7 +575,7 @@ func DestroyOrgResourcesWithReport(workerId int, ctx context.Context, logger *sl
 		}
 
 		// Call the GraphQL-based DeleteOrg function
-		if err := enterprise.DeleteOrg(ctx, logger, orgName); err != nil {
+		if err := api.DeleteOrg(ctx, logger, orgName); err != nil {
 			logger.Error("Failed to delete organization",
 				slog.String("user", user),
 				slog.String("org", orgName),

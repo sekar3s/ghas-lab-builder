@@ -207,7 +207,7 @@ func AddOrgMember(ctx context.Context, logger *slog.Logger, orgName string, user
 	return nil
 }
 
-func (enterprise *Enterprise) DeleteOrg(ctx context.Context, logger *slog.Logger, orgLogin string) error {
+func DeleteOrg(ctx context.Context, logger *slog.Logger, orgLogin string) error {
 	logger.Info("Deleting organization", slog.String("org", orgLogin))
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
@@ -219,174 +219,37 @@ func (enterprise *Enterprise) DeleteOrg(ctx context.Context, logger *slog.Logger
 	}
 
 	baseURL := ctx.Value(config.BaseURLKey).(string)
-	graphqlURL := baseURL + "/graphql"
+	apiURL := fmt.Sprintf("%s/orgs/%s", baseURL, orgLogin)
 
-	queryOrg := `
-		query($login: String!) {
-			organization(login: $login) {
-				id
-				login
-			}
-		}
-	`
-
-	queryPayload := map[string]interface{}{
-		"query": queryOrg,
-		"variables": map[string]interface{}{
-			"login": orgLogin,
-		},
-	}
-
-	jsonData, err := json.Marshal(queryPayload)
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, apiURL, nil)
 	if err != nil {
-		logger.Error("Failed to marshal GraphQL query payload", slog.Any("error", err))
-		return fmt.Errorf("failed to marshal GraphQL query payload: %w", err)
-	}
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, graphqlURL, bytes.NewBuffer(jsonData))
-	if err != nil {
-		logger.Error("Failed to create query request", slog.Any("error", err))
-		return fmt.Errorf("failed to create query request: %w", err)
+		logger.Error("Failed to create request", slog.Any("error", err))
+		return fmt.Errorf("failed to create request: %w", err)
 	}
 
 	resp, err := client.Do(req)
 	if err != nil {
-		logger.Error("Failed to execute query request", slog.Any("error", err))
-		return fmt.Errorf("failed to execute query request: %w", err)
+		logger.Error("Failed to execute request", slog.Any("error", err))
+		return fmt.Errorf("failed to execute request: %w", err)
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		logger.Error("Failed to read query response body", slog.Any("error", err))
-		return fmt.Errorf("failed to read query response body: %w", err)
+		logger.Error("Failed to read response body", slog.Any("error", err))
+		return fmt.Errorf("failed to read response body: %w", err)
 	}
 
-	if resp.StatusCode != http.StatusOK {
-		logger.Error("GraphQL query request failed",
+	if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusAccepted {
+		logger.Error("Failed to delete organization",
 			slog.Int("status_code", resp.StatusCode),
 			slog.String("response", string(body)))
-		return fmt.Errorf("GraphQL query request failed with status %d: %s", resp.StatusCode, string(body))
-	}
-
-	var queryResult struct {
-		Data struct {
-			Organization *Organization `json:"organization"`
-		} `json:"data"`
-		Errors []struct {
-			Message string   `json:"message"`
-			Path    []string `json:"path"`
-		} `json:"errors"`
-	}
-
-	if err := json.Unmarshal(body, &queryResult); err != nil {
-		logger.Error("Failed to parse query response", slog.Any("error", err))
-		return fmt.Errorf("failed to parse query response: %w", err)
-	}
-
-	if len(queryResult.Errors) > 0 {
-		logger.Error("GraphQL query errors returned",
-			slog.String("message", queryResult.Errors[0].Message),
-			slog.Any("errors", queryResult.Errors))
-		return fmt.Errorf("GraphQL query errors: %v", queryResult.Errors)
-	}
-
-	if queryResult.Data.Organization == nil {
-		logger.Info("Organization not found, skipping deletion", slog.String("org", orgLogin))
-		return nil // Return success since org doesn't exist (already deleted or never created)
-	}
-
-	orgID := queryResult.Data.Organization.ID
-	logger.Info("Found organization to delete", slog.String("org", orgLogin), slog.String("id", orgID))
-
-	mutation := `
-		mutation($enterpriseId: ID!, $organizationId: ID!) {
-			removeEnterpriseOrganization(input: {
-				enterpriseId: $enterpriseId
-				organizationId: $organizationId
-			}) {
-				clientMutationId
-				enterprise {
-					id
-				}
-				organization {
-					id
-					name
-				}
-				viewer {
-					id
-				}
-			}
-		}
-	`
-
-	deletePayload := map[string]interface{}{
-		"query": mutation,
-		"variables": map[string]interface{}{
-			"enterpriseId":   enterprise.ID,
-			"organizationId": orgID,
-		},
-	}
-
-	jsonData, err = json.Marshal(deletePayload)
-	if err != nil {
-		logger.Error("Failed to marshal GraphQL delete payload", slog.Any("error", err))
-		return fmt.Errorf("failed to marshal GraphQL delete payload: %w", err)
-	}
-
-	req, err = http.NewRequestWithContext(ctx, http.MethodPost, graphqlURL, bytes.NewBuffer(jsonData))
-	if err != nil {
-		logger.Error("Failed to create delete request", slog.Any("error", err))
-		return fmt.Errorf("failed to create delete request: %w", err)
-	}
-
-	resp, err = client.Do(req)
-	if err != nil {
-		logger.Error("Failed to execute delete request", slog.Any("error", err))
-		return fmt.Errorf("failed to execute delete request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	body, err = io.ReadAll(resp.Body)
-	if err != nil {
-		logger.Error("Failed to read delete response body", slog.Any("error", err))
-		return fmt.Errorf("failed to read delete response body: %w", err)
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		logger.Error("GraphQL delete request failed",
-			slog.Int("status_code", resp.StatusCode),
-			slog.String("response", string(body)))
-		return fmt.Errorf("GraphQL delete request failed with status %d: %s", resp.StatusCode, string(body))
-	}
-
-	var deleteResult struct {
-		Data struct {
-			RemoveEnterpriseOrganization struct {
-				ClientMutationID string `json:"clientMutationId"`
-			} `json:"removeEnterpriseOrganization"`
-		} `json:"data"`
-		Errors []struct {
-			Message string   `json:"message"`
-			Path    []string `json:"path"`
-		} `json:"errors"`
-	}
-
-	if err := json.Unmarshal(body, &deleteResult); err != nil {
-		logger.Error("Failed to parse delete response", slog.Any("error", err))
-		return fmt.Errorf("failed to parse delete response: %w", err)
-	}
-
-	if len(deleteResult.Errors) > 0 {
-		logger.Error("GraphQL delete errors returned",
-			slog.String("message", deleteResult.Errors[0].Message),
-			slog.Any("errors", deleteResult.Errors))
-		return fmt.Errorf("GraphQL delete errors: %v", deleteResult.Errors)
+		return fmt.Errorf("failed to delete organization with status %d: %s", resp.StatusCode, string(body))
 	}
 
 	logger.Info("Successfully deleted organization",
 		slog.String("org", orgLogin),
-		slog.String("id", orgID))
+		slog.Int("status_code", resp.StatusCode))
 
 	return nil
 }

@@ -38,7 +38,6 @@ var deleteBatchCmd = &cobra.Command{
 		}
 
 		ctx := cmd.Context()
-		ctx = context.WithValue(ctx, config.EnterpriseSlugKey, cmd.Flags().Lookup("enterprise-slug").Value.String())
 		cmd.SetContext(ctx)
 		return nil
 	},
@@ -66,22 +65,14 @@ var deleteBatchCmd = &cobra.Command{
 			return nil
 		}
 
-		enterpriseSlug := ctx.Value(config.EnterpriseSlugKey).(string)
-		enterprise, err := api.GetEnterprise(ctx, logger, enterpriseSlug)
-		if err != nil {
-			logger.Error("Failed to get enterprise info", slog.Any("error", err))
-			return fmt.Errorf("failed to get enterprise info: %w", err)
-		}
-
 		// Initialize delete report
 		deleteReport := &services.DeleteLabReport{
-			GeneratedAt:    time.Now(),
-			LabDate:        "batch-delete",
-			EnterpriseSlug: enterpriseSlug,
-			TotalUsers:     len(orgNames),
-			SuccessCount:   0,
-			FailureCount:   0,
-			Organizations:  make([]services.DeleteOrgReport, 0),
+			GeneratedAt:   time.Now(),
+			LabDate:       "batch-delete",
+			TotalUsers:    len(orgNames),
+			SuccessCount:  0,
+			FailureCount:  0,
+			Organizations: make([]services.DeleteOrgReport, 0),
 		}
 
 		// Set up channels and workers
@@ -106,7 +97,7 @@ var deleteBatchCmd = &cobra.Command{
 			wg.Add(1)
 			go func(workerId int) {
 				defer wg.Done()
-				deleteOrgBatchWorker(workerId, ctx, logger, orgChan, resultsChan, enterprise)
+				deleteOrgBatchWorker(workerId, ctx, logger, orgChan, resultsChan)
 			}(i)
 		}
 
@@ -163,7 +154,7 @@ var deleteBatchCmd = &cobra.Command{
 }
 
 // deleteOrgBatchWorker is a worker function that processes organization deletions
-func deleteOrgBatchWorker(workerId int, ctx context.Context, logger *slog.Logger, orgChan chan string, resultsChan chan services.DeleteOrgReport, enterprise *api.Enterprise) {
+func deleteOrgBatchWorker(workerId int, ctx context.Context, logger *slog.Logger, orgChan chan string, resultsChan chan services.DeleteOrgReport) {
 	logger.Info("Delete worker started", slog.Int("workerId", workerId))
 
 	for orgName := range orgChan {
@@ -187,7 +178,7 @@ func deleteOrgBatchWorker(workerId int, ctx context.Context, logger *slog.Logger
 		}
 
 		// Delete the organization
-		if err := enterprise.DeleteOrg(ctx, logger, orgName); err != nil {
+		if err := api.DeleteOrg(ctx, logger, orgName); err != nil {
 			logger.Error("Failed to delete organization",
 				slog.Int("workerId", workerId),
 				slog.String("org", orgName),

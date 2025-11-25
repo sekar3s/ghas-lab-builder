@@ -17,11 +17,10 @@ import (
 )
 
 var (
-	appId          string
-	privateKey     string
-	token          string
-	baseURL        string
-	enterpriseSlug string
+	appId      string
+	privateKey string
+	token      string
+	baseURL    string
 )
 
 var rootCmd = &cobra.Command{
@@ -89,7 +88,6 @@ var rootCmd = &cobra.Command{
 		}
 
 		ctx = context.WithValue(ctx, config.BaseURLKey, baseURL)
-		ctx = context.WithValue(ctx, config.EnterpriseSlugKey, enterpriseSlug)
 
 		logger.Info("Logging initialized", slog.String("log_file", logFilePath))
 
@@ -121,8 +119,6 @@ func init() {
 
 	// Common flags
 	rootCmd.PersistentFlags().StringVar(&baseURL, "base-url", "", "GitHub API base URL")
-	rootCmd.PersistentFlags().StringVar(&enterpriseSlug, "enterprise-slug", "", "GitHub Enterprise slug")
-	rootCmd.MarkPersistentFlagRequired("enterprise-slug")
 
 	if baseURL == "" {
 		baseURL = config.DefaultBaseURL

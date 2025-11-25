@@ -32,6 +32,7 @@ var DeleteCmd = &cobra.Command{
 		ctx := cmd.Context()
 		ctx = context.WithValue(ctx, config.FacilitatorsKey, strings.Split(facilitators, ","))
 		ctx = context.WithValue(ctx, config.LabDateKey, labDate)
+		ctx = context.WithValue(ctx, config.EnterpriseSlugKey, enterpriseSlug)
 
 		cmd.SetContext(ctx)
 		return nil
