@@ -46,6 +46,7 @@ The tool supports two authentication methods:
 ```bash
 --token YOUR_GITHUB_TOKEN
 ```
+**NOTE:** The GitHub user linked to the PAT will be assigned as an admin for the newly created organizations. Make sure this user is listed as one of the facilitators; otherwise, you may face errors during the lab creation process.
 
 **Required Scopes:**
 
@@ -54,7 +55,7 @@ The classic PAT token must have the following scopes:
 - `admin:org`
 - `admin:enterprise`
 
-**Note:** GitHub rate limits restrict PAT users to 50 repos per minute and 150 repos per hour.
+**NOTE:** GitHub rate limits restrict PAT users to 50 repos per minute and 150 repos per hour. 
 
 ---
 
@@ -67,13 +68,17 @@ The classic PAT token must have the following scopes:
 **Required Permissions:**
 
 The GitHub App must have the following permissions:
-- Read access to metadata
-- Read and write access to:
-  - Administration
-  - Code
-  - Issues
-  - Members
-  - Organization administration
+
+- Repository permissions: 
+  - Administration (Read and write)
+  - Contents (Read and write)
+  - Metadata (Read-only)
+- Organization permissions: 
+  - Administration (Read and write)
+  - Members (Read and write)
+- Enterprise permissions: 
+  - Enterprise organization installations (Read and write)
+  - Enterprise organizations (Read and write)
 
 ---
 
