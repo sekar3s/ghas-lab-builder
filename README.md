@@ -54,7 +54,7 @@ The classic PAT token must have the following scopes:
 - `admin:org`
 - `admin:enterprise`
 
-**NOTE:** GitHub rate limits restrict PAT users to 50 repos per minute and 150 repos per hour. 
+**Note:** GitHub rate limits restrict PAT users to 50 repos per minute and 150 repos per hour. 
 
 ---
 
